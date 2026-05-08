@@ -1,0 +1,6 @@
+{
+  "app_id": "com.architit.trianiuma.ark",
+  "version": "1.0.0-phase0",
+  "permissions": ["CAMERA", "LOCATION", "STORAGE", "API_BRIDGE"],
+  "orchestrator_link": "radriloniuma.ark"
+}
