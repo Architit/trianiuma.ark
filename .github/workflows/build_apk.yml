@@ -11,6 +11,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
 
     steps:
     - uses: actions/checkout@v4
@@ -19,6 +20,15 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+
+    - name: Show spec and structure
+      run: |
+        echo "=== buildozer.spec (non-comment) ==="
+        grep -v "^#" buildozer.spec | grep -v "^$"
+        echo "=== repo structure ==="
+        ls -la
+        echo "=== main.py head ==="
+        head -20 main.py || echo "NO main.py!"
 
     - name: Install system deps
       run: |
@@ -30,30 +40,35 @@ jobs:
           libssl-dev libffi-dev libsqlite3-dev \
           ccache build-essential
 
-    - name: Install buildozer + cython
+    - name: Install buildozer
       run: |
-        pip install --upgrade pip
+        pip install --upgrade pip wheel
         pip install cython==0.29.37
         pip install buildozer==1.5.0
+        buildozer version
 
-    - name: Show buildozer version
-      run: buildozer version
-
-    - name: Cache buildozer global dir
+    - name: Cache buildozer
       uses: actions/cache@v4
       with:
         path: ~/.buildozer
-        key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+        key: buildozer-${{ runner.os }}-v2-${{ hashFiles('buildozer.spec') }}
 
-    - name: Build APK (debug)
+    - name: Build APK
       run: |
-        buildozer -v android debug 2>&1 | tee build.log || true
-        echo "=== BUILD EXIT ==="
-        ls -la bin/ 2>/dev/null || echo "bin/ directory is EMPTY or missing"
-        echo "=== LAST 50 LINES OF LOG ==="
-        tail -50 build.log
+        export ANDROIDAPI=33
+        export ANDROIDMINAPI=21
+        buildozer -v android debug 2>&1 | tee build.log
+      continue-on-error: true
 
-    - name: Upload all artifacts
+    - name: Show results
+      if: always()
+      run: |
+        echo "=== BIN DIR ==="
+        ls -lah bin/ 2>/dev/null || echo "EMPTY"
+        echo "=== LAST 100 LINES LOG ==="
+        tail -100 build.log 2>/dev/null || echo "NO LOG"
+
+    - name: Upload
       uses: actions/upload-artifact@v4
       if: always()
       with:
@@ -61,5 +76,4 @@ jobs:
         path: |
           bin/
           build.log
-          .buildozer/android/platform/build-arm64-v8a/build/bootstrap_builds/
         retention-days: 14
