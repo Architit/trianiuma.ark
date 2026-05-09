@@ -21,15 +21,6 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Show spec and structure
-      run: |
-        echo "=== buildozer.spec (non-comment) ==="
-        grep -v "^#" buildozer.spec | grep -v "^$"
-        echo "=== repo structure ==="
-        ls -la
-        echo "=== main.py head ==="
-        head -20 main.py || echo "NO main.py!"
-
     - name: Install system deps
       run: |
         sudo apt-get update -qq
@@ -45,28 +36,37 @@ jobs:
         pip install --upgrade pip wheel
         pip install cython==0.29.37
         pip install buildozer==1.5.0
-        buildozer version
 
     - name: Cache buildozer
       uses: actions/cache@v4
       with:
         path: ~/.buildozer
-        key: buildozer-${{ runner.os }}-v2-${{ hashFiles('buildozer.spec') }}
+        key: buildozer-${{ runner.os }}-v3-${{ hashFiles('buildozer.spec') }}
+
+    - name: Pre-accept ALL Android SDK licenses
+      run: |
+        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" \
+          > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" \
+          >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "d975f751698a77b662f1254ddbeed3901e976f5a" \
+          > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+        echo "601085b94cd77f0b54ff86406957099ebe79c4d6" \
+          >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
 
     - name: Build APK
       run: |
-        export ANDROIDAPI=33
-        export ANDROIDMINAPI=21
         buildozer -v android debug 2>&1 | tee build.log
       continue-on-error: true
 
     - name: Show results
       if: always()
       run: |
-        echo "=== BIN DIR ==="
+        echo "=== BIN ==="
         ls -lah bin/ 2>/dev/null || echo "EMPTY"
-        echo "=== LAST 100 LINES LOG ==="
-        tail -100 build.log 2>/dev/null || echo "NO LOG"
+        echo "=== TAIL LOG ==="
+        tail -30 build.log
 
     - name: Upload
       uses: actions/upload-artifact@v4
