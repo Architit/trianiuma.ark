@@ -5,6 +5,9 @@ on:
     branches: [ main, master, ark-gen-phase-0 ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -12,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
@@ -25,26 +28,38 @@ jobs:
           autoconf libtool pkg-config \
           zlib1g-dev libncurses5-dev \
           libssl-dev libffi-dev libsqlite3-dev \
-          ccache
+          ccache build-essential
 
     - name: Install buildozer + cython
-      run: pip install --upgrade buildozer cython virtualenv
+      run: |
+        pip install --upgrade pip
+        pip install cython==0.29.37
+        pip install buildozer==1.5.0
+
+    - name: Show buildozer version
+      run: buildozer version
 
     - name: Cache buildozer global dir
       uses: actions/cache@v4
       with:
         path: ~/.buildozer
-        key: buildozer-${{ hashFiles('buildozer.spec') }}
+        key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
 
-    - name: Build APK
-      run: buildozer -v android debug 2>&1 | tee build.log
+    - name: Build APK (debug)
+      run: |
+        buildozer -v android debug 2>&1 | tee build.log || true
+        echo "=== BUILD EXIT ==="
+        ls -la bin/ 2>/dev/null || echo "bin/ directory is EMPTY or missing"
+        echo "=== LAST 50 LINES OF LOG ==="
+        tail -50 build.log
 
-    - name: Upload APK artifact
+    - name: Upload all artifacts
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: trianiuma-apk-${{ github.sha }}
+        name: trianiuma-build-${{ github.run_number }}
         path: |
-          bin/*.apk
+          bin/
           build.log
+          .buildozer/android/platform/build-arm64-v8a/build/bootstrap_builds/
         retention-days: 14
