@@ -2,13 +2,13 @@ name: Build Trianiuma APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, ark-gen-phase-0 ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+
     steps:
     - uses: actions/checkout@v3
 
@@ -17,36 +17,34 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install system deps
       run: |
-        sudo apt-get update
+        sudo apt-get update -qq
         sudo apt-get install -y \
           git zip unzip openjdk-17-jdk \
-          python3-pip autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libncursesw5-dev \
-          libssl-dev libffi-dev libsqlite3-dev
-        pip install --upgrade buildozer cython
+          autoconf libtool pkg-config \
+          zlib1g-dev libncurses5-dev \
+          libssl-dev libffi-dev libsqlite3-dev \
+          ccache
+
+    - name: Install buildozer + cython
+      run: pip install --upgrade buildozer cython virtualenv
+
+    - name: Cache buildozer global dir
+      uses: actions/cache@v3
+      with:
+        path: ~/.buildozer
+        key: buildozer-${{ hashFiles('buildozer.spec') }}
 
     - name: Build APK
-      run: |
-        cd trianiuma.ark || cd .
-        buildozer android debug 2>&1 | tee build.log
+      run: buildozer -v android debug 2>&1 | tee build.log
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v3
+      if: always()
       with:
-        name: trianiuma-apk
+        name: trianiuma-apk-${{ github.sha }}
         path: |
           bin/*.apk
-          bin/*.aab
-        retention-days: 7
-
-    - name: Upload to OneDrive via rclone
-      if: success()
-      env:
-        RCLONE_ONEDRIVE_TOKEN: ${{ secrets.RCLONE_TOKEN }}
-      run: |
-        curl https://rclone.org/install.sh | bash
-        mkdir -p ~/.config/rclone
-        echo "${{ secrets.RCLONE_CONF }}" > ~/.config/rclone/rclone.conf
-        rclone copy bin/ onedrive:RADRILONIUMA_PROJECT/builds/ --include "*.apk"
+          build.log
+        retention-days: 14
