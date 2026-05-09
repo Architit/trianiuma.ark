@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -31,7 +31,7 @@ jobs:
       run: pip install --upgrade buildozer cython virtualenv
 
     - name: Cache buildozer global dir
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.buildozer
         key: buildozer-${{ hashFiles('buildozer.spec') }}
@@ -40,7 +40,7 @@ jobs:
       run: buildozer -v android debug 2>&1 | tee build.log
 
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: trianiuma-apk-${{ github.sha }}
